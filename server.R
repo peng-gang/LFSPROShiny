@@ -26,6 +26,7 @@ sketch = htmltools::withTags(table(
 
 LFSPRO.rlt <- NULL
 cutoff <- 0.2
+lfs.mode <- NULL
 
 shinyServer(function(input, output) {
   famdata <- reactive({
@@ -50,25 +51,199 @@ shinyServer(function(input, output) {
              stringsAsFactors = FALSE)
   })
   
-  # cutoff <- reactive({
-  #   cutoff <- NULL
-  #   if(is.null(input$cutoff)){
-  #     cutoff <- 0.2
-  #   } else {
-  #     cutoff <- input$cutoff
-  #   }
-  #   cutoff
-  # })
-  
   output$ui.action <- renderUI({
     if (is.null(famdata())) return()
     if (is.null(cancerdata())) return()
-    actionButton("action", "Run LFSPRO")
+    actionButton("action", "Run LFSPRO (1st)")
   })
   
+  output$ui.action2 <- renderUI({
+    if (is.null(famdata())) return()
+    if (is.null(cancerdata())) return()
+    actionButton("action2", "Run LFSPRO (mpc)")
+  })
+  
+  observeEvent(
+    eventExpr = input$action,
+    handlerExpr = {
+      lfs.mode <<- "1st.cs"
+      #lfs.mode <<- "mpc"
+      
+      output$distPlot <- renderPlot({
+        if (is.null(input$action) || is.null(input$action2)) return()
+        if (input$action==0 && input$action2==0) return()
+        isolate({
+          fam.data <- famdata()
+          #fam.data <- LFSPRO::fam.data
+          if (is.null(fam.data)) return(NULL)
+          cancer.data <- cancerdata()
+          #cancer.data <- LFSPRO::cancer.data
+          if (is.null(cancer.data)) return(NULL)
+          
+          aff <- fam.data$id %in% cancer.data$id
+          
+          ped <- pedigree(id =  fam.data$id, 
+                          dadid = fam.data$fid,
+                          momid = fam.data$mid,
+                          sex = ifelse(fam.data$gender==0, 2, 1),
+                          famid = rep("fam", nrow(fam.data)),
+                          affected = aff)
+          plot(ped['fam'])
+          #pedigree.legend( ped, location="topright",radius=.2)
+        })
+      })
+      
+      output$table <- DT::renderDataTable({
+        if (is.null(input$action) || is.null(input$action2)) return(DT::datatable(NULL))
+        if (input$action==0 && input$action2==0) return(DT::datatable(NULL))
+        
+        DT::datatable({
+          isolate({
+            fam.data <- famdata()
+            #print(famdata)
+            #fam.data <- LFSPRO::fam.data
+            if (is.null(fam.data)) return(NULL)
+            cancer.data <- cancerdata()
+            #print(cancer.data)
+            #cancer.data <- LFSPRO::cancer.data
+            if (is.null(cancer.data)) return(NULL)
+            
+            fam.data$fam.id <- "fam"
+            cancer.data$fam.id <- "fam"
+            
+            allef.g <- list(c(0.9999,0.0001))
+            mRate.g <- 5e-4
+            
+            counselee.id <- data.frame(fam.id=fam.data$fam.id, id = fam.data$id)
+            rlt <- lfspro.mode(fam.data, cancer.data, counselee.id, "1st.all")
+            rlt.chompret <- lfsChompret2015(fam.data, cancer.data, counselee.id)
+            rlt.classic <- lfsClassic(fam.data, cancer.data, counselee.id)
+            rlt.lfs <- lfspro.mode(fam.data, cancer.data, counselee.id, lfs.mode)
+            prob <- rlt.lfs[[1]][,3]
+            if(lfs.mode=="1st.cs"){
+              risk.lfs <- rlt.lfs[[2]][[1]][,4:6]
+            } else if(lfs.mode=="mpc"){
+              risk.lfs <- rlt.lfs[[2]][,3:5]
+            }
+            
+            rlt <- data.frame(id = factor(rlt[,2], levels =  rlt[,2]),
+                              ProbLFSPRO = as.numeric(prob),
+                              LFSPRO = factor(ifelse(prob>cutoff, "Yes", "No"), 
+                                              levels = c("Yes", "No")),
+                              Chompret = factor(ifelse(rlt.chompret$result, "Yes", "No"),
+                                                levels = c("Yes", "No")),
+                              Classic = factor(ifelse(rlt.classic$result, "Yes", "No"),
+                                               levels = c("Yes", "No")),
+                              Cancer5y = risk.lfs[,1],
+                              Cancer10y = risk.lfs[,2],
+                              Cancer15y = risk.lfs[,3])
+            colnames(rlt) <- c("ID", "ProbLFSPRO", "LFSPRO-carrier", "Chompret criteria", "Classic criteria",
+                               "5 Years", "10 Years", "15 Years")
+            LFSPRO.rlt <<- rlt
+            rlt
+          })
+        }, rownames= FALSE, container = sketch, filter = 'top') %>% DT::formatRound('ProbLFSPRO', 3) %>%
+          DT::formatRound(c("5 Years", "10 Years", "15 Years"), 3) %>%
+          formatStyle(c('LFSPRO-carrier', 'Chompret criteria', 'Classic criteria'),
+                      color = styleEqual("Yes", 'red'))
+      })
+    }
+    
+  )
+  
+  observeEvent(
+    eventExpr = input$action2,
+    handlerExpr = {
+      lfs.mode <<- "mpc"
+      
+      output$distPlot <- renderPlot({
+        if (is.null(input$action) || is.null(input$action2)) return()
+        if (input$action==0 && input$action2==0) return()
+        isolate({
+          fam.data <- famdata()
+          #fam.data <- LFSPRO::fam.data
+          if (is.null(fam.data)) return(NULL)
+          cancer.data <- cancerdata()
+          #cancer.data <- LFSPRO::cancer.data
+          if (is.null(cancer.data)) return(NULL)
+          
+          aff <- fam.data$id %in% cancer.data$id
+          
+          ped <- pedigree(id =  fam.data$id, 
+                          dadid = fam.data$fid,
+                          momid = fam.data$mid,
+                          sex = ifelse(fam.data$gender==0, 2, 1),
+                          famid = rep("fam", nrow(fam.data)),
+                          affected = aff)
+          plot(ped['fam'])
+          #pedigree.legend( ped, location="topright",radius=.2)
+        })
+      })
+      
+      
+      output$table <- DT::renderDataTable({
+        if (is.null(input$action) || is.null(input$action2)) return(DT::datatable(NULL))
+        if (input$action==0 && input$action2==0) return(DT::datatable(NULL))
+        
+        DT::datatable({
+          isolate({
+            fam.data <- famdata()
+            #print(famdata)
+            #fam.data <- LFSPRO::fam.data
+            if (is.null(fam.data)) return(NULL)
+            cancer.data <- cancerdata()
+            #print(cancer.data)
+            #cancer.data <- LFSPRO::cancer.data
+            if (is.null(cancer.data)) return(NULL)
+            
+            fam.data$fam.id <- "fam"
+            cancer.data$fam.id <- "fam"
+            
+            allef.g <- list(c(0.9999,0.0001))
+            mRate.g <- 5e-4
+            
+            counselee.id <- data.frame(fam.id=fam.data$fam.id, id = fam.data$id)
+            rlt <- lfspro.mode(fam.data, cancer.data, counselee.id, "1st.all")
+            rlt.chompret <- lfsChompret2015(fam.data, cancer.data, counselee.id)
+            rlt.classic <- lfsClassic(fam.data, cancer.data, counselee.id)
+            rlt.lfs <- lfspro.mode(fam.data, cancer.data, counselee.id, lfs.mode)
+            prob <- rlt.lfs[[1]][,3]
+            if(lfs.mode=="1st.cs"){
+              risk.lfs <- rlt.lfs[[2]][[1]][,4:6]
+            } else if(lfs.mode=="mpc"){
+              risk.lfs <- rlt.lfs[[2]][,3:5]
+            }
+            
+            rlt <- data.frame(id = factor(rlt[,2], levels =  rlt[,2]),
+                              ProbLFSPRO = as.numeric(prob),
+                              LFSPRO = factor(ifelse(prob>cutoff, "Yes", "No"), 
+                                              levels = c("Yes", "No")),
+                              Chompret = factor(ifelse(rlt.chompret$result, "Yes", "No"),
+                                                levels = c("Yes", "No")),
+                              Classic = factor(ifelse(rlt.classic$result, "Yes", "No"),
+                                               levels = c("Yes", "No")),
+                              Cancer5y = risk.lfs[,1],
+                              Cancer10y = risk.lfs[,2],
+                              Cancer15y = risk.lfs[,3])
+            colnames(rlt) <- c("ID", "ProbLFSPRO", "LFSPRO-carrier", "Chompret criteria", "Classic criteria",
+                               "5 Years", "10 Years", "15 Years")
+            LFSPRO.rlt <<- rlt
+            rlt
+          })
+        }, rownames= FALSE, container = sketch, filter = 'top') %>% DT::formatRound('ProbLFSPRO', 3) %>%
+          DT::formatRound(c("5 Years", "10 Years", "15 Years"), 3) %>%
+          formatStyle(c('LFSPRO-carrier', 'Chompret criteria', 'Classic criteria'),
+                      color = styleEqual("Yes", 'red'))
+      })
+      
+    }
+  )
+  
   output$ui.cutoff <- renderUI({
-    if (is.null(input$action)) return()
-    if (input$action==0) return()
+    if (is.null(input$action) || is.null(input$action2)) return()
+    if (input$action==0 && input$action2==0) return()
+    #print(input$action)
+    #print(input$action2)
     sliderInput("cutoff", "Cutoff for probability",
                 min=0, max=1, value = 0.2, step = 0.05)
   })
@@ -78,8 +253,8 @@ shinyServer(function(input, output) {
   })
   
   output$ui.download <- renderUI({
-    if (is.null(input$action)) return()
-    if (input$action==0) return()
+    if (is.null(input$action) || is.null(input$action2)) return()
+    if (input$action==0 && input$action2==0) return()
     downloadButton('download', "Download Results")
   })
   
@@ -108,85 +283,13 @@ shinyServer(function(input, output) {
     }
   })
   
-  output$distPlot <- renderPlot({
-    if (is.null(input$action)) return()
-    if (input$action==0) return()
-    isolate({
-      fam.data <- famdata()
-      #fam.data <- LFSPRO::fam.data
-      if (is.null(fam.data)) return(NULL)
-      cancer.data <- cancerdata()
-      #cancer.data <- LFSPRO::cancer.data
-      if (is.null(cancer.data)) return(NULL)
-      
-      aff <- fam.data$id %in% cancer.data$id
-      
-      ped <- pedigree(id =  fam.data$id, 
-                      dadid = fam.data$fid,
-                      momid = fam.data$mid,
-                      sex = ifelse(fam.data$gender==0, 2, 1),
-                      famid = rep("fam", nrow(fam.data)),
-                      affected = aff)
-      plot(ped['fam'])
-    })
-  })
-  
-  output$table <- DT::renderDataTable({
-    if (is.null(input$action)) return(DT::datatable(NULL))
-    if (input$action==0) return(DT::datatable(NULL))
-    
-    DT::datatable({
-      isolate({
-        fam.data <- famdata()
-        #print(famdata)
-        #fam.data <- LFSPRO::fam.data
-        if (is.null(fam.data)) return(NULL)
-        cancer.data <- cancerdata()
-        #print(cancer.data)
-        #cancer.data <- LFSPRO::cancer.data
-        if (is.null(cancer.data)) return(NULL)
-        
-        fam.data$fam.id <- "fam"
-        cancer.data$fam.id <- "fam"
-        
-        allef.g <- list(c(0.9999,0.0001))
-        mRate.g <- 5e-4
-        
-        counselee.id <- data.frame(fam.id=fam.data$fam.id, id = fam.data$id)
-        rlt <- lfspro.mode(fam.data, cancer.data, counselee.id, "1st.all")
-        rlt.chompret <- lfsChompret2015(fam.data, cancer.data, counselee.id)
-        rlt.classic <- lfsClassic(fam.data, cancer.data, counselee.id)
-        rlt.mpc <- lfspro.mode(fam.data, cancer.data, counselee.id, "mpc")
-        prob <- rlt[,3]
-        risk.mpc <- rlt.mpc[[2]][,3:5]
-        rlt <- data.frame(id = factor(rlt[,2], levels =  rlt[,2]),
-                          ProbLFSPRO = as.numeric(prob),
-                          LFSPRO = factor(ifelse(prob>cutoff, "Yes", "No"), 
-                                          levels = c("Yes", "No")),
-                          Chompret = factor(ifelse(rlt.chompret$result, "Yes", "No"),
-                                            levels = c("Yes", "No")),
-                          Classic = factor(ifelse(rlt.classic$result, "Yes", "No"),
-                                           levels = c("Yes", "No")),
-                          Cancer5y = risk.mpc[,1],
-                          Cancer10y = risk.mpc[,2],
-                          Cancer15y = risk.mpc[,3])
-        colnames(rlt) <- c("ID", "ProbLFSPRO", "LFSPRO-carrier", "Chompret criteria", "Classic criteria",
-                           "5 Years", "10 Years", "15 Years")
-        LFSPRO.rlt <<- rlt
-        rlt
-      })
-    }, rownames= FALSE, container = sketch, filter = 'top') %>% DT::formatRound('ProbLFSPRO', 3) %>%
-      DT::formatRound(c("5 Years", "10 Years", "15 Years"), 3) %>%
-      formatStyle(c('LFSPRO-carrier', 'Chompret criteria', 'Classic criteria'),
-                  color = styleEqual("Yes", 'red'))
-  })
   
   observeEvent(eventExpr = input$cutoff, handlerExpr = {
     cutoff <<- input$cutoff
     
     output$distPlot <- renderPlot({
-      if (is.null(input$action)) return()
-      if (input$action==0) return()
+      if (is.null(input$action) || is.null(input$action2)) return()
+      if (input$action==0 && input$action2==0) return()
       isolate({
         fam.data <- famdata()
         #fam.data <- LFSPRO::fam.data
@@ -210,8 +313,8 @@ shinyServer(function(input, output) {
     
     
     output$table <- DT::renderDataTable({
-      if (is.null(input$action)) return(DT::datatable(NULL))
-      if (input$action==0) return(DT::datatable(NULL))
+      if (is.null(input$action) || is.null(input$action2)) return(DT::datatable(NULL))
+      if (input$action==0 && input$action2==0) return(DT::datatable(NULL))
       
       DT::datatable({
         isolate({
@@ -234,9 +337,14 @@ shinyServer(function(input, output) {
           rlt <- lfspro.mode(fam.data, cancer.data, counselee.id, "1st.all")
           rlt.chompret <- lfsChompret2015(fam.data, cancer.data, counselee.id)
           rlt.classic <- lfsClassic(fam.data, cancer.data, counselee.id)
-          rlt.mpc <- lfspro.mode(fam.data, cancer.data, counselee.id, "mpc")
-          prob <- rlt[,3]
-          risk.mpc <- rlt.mpc[[2]][,3:5]
+          rlt.lfs <- lfspro.mode(fam.data, cancer.data, counselee.id, lfs.mode)
+          prob <- rlt.lfs[[1]][,3]
+          if(lfs.mode=="1st.cs"){
+            risk.lfs <- rlt.lfs[[2]][[1]][,4:6]
+          } else if(lfs.mode=="mpc"){
+            risk.lfs <- rlt.lfs[[2]][,3:5]
+          }
+          
           rlt <- data.frame(id = factor(rlt[,2], levels =  rlt[,2]),
                             ProbLFSPRO = as.numeric(prob),
                             LFSPRO = factor(ifelse(prob>cutoff, "Yes", "No"), 
@@ -245,9 +353,9 @@ shinyServer(function(input, output) {
                                               levels = c("Yes", "No")),
                             Classic = factor(ifelse(rlt.classic$result, "Yes", "No"),
                                              levels = c("Yes", "No")),
-                            Cancer5y = risk.mpc[,1],
-                            Cancer10y = risk.mpc[,2],
-                            Cancer15y = risk.mpc[,3])
+                            Cancer5y = risk.lfs[,1],
+                            Cancer10y = risk.lfs[,2],
+                            Cancer15y = risk.lfs[,3])
           colnames(rlt) <- c("ID", "ProbLFSPRO", "LFSPRO-carrier", "Chompret criteria", "Classic criteria",
                              "5 Years", "10 Years", "15 Years")
           LFSPRO.rlt <<- rlt

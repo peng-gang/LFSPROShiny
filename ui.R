@@ -44,7 +44,16 @@ shinyUI(
                              ".csv")),
         
         tags$hr(),
-        uiOutput('ui.action'), # instead of conditionalPanel
+        fluidRow(
+          column(
+            4, 
+            uiOutput('ui.action')),
+          column(
+            4,
+            uiOutput('ui.action2')
+          )
+        ),
+        
         uiOutput("ui.cutoff")
       ),
       
