@@ -4,7 +4,8 @@ The live code is hosted [here](https://gangpeng.shinyapps.io/LFSPRO/)
 
 ## Link to LFSPRO package
 [LFSPRO](https://github.com/wwylab/LFSPRO)
-[LFSPRO Github] (https://github.com/wwylab/LFSPRO)
+
+[LFSPRO Github](https://github.com/wwylab/LFSPRO)
 
 ## Reference
 Peng, G., Bojadzieva, J., Ballinger, M. L., Li, J., Blackford, A. L., Mai, P. L., Savage, S. A., Thomas, D. M., Strong, L. C., … Wang, W. (2017). Estimating TP53 Mutation Carrier Probability in Families with Li-Fraumeni Syndrome Using LFSPRO. Cancer Epidemiology, Biomarker and Prevention, 26(6), 837-844. https://doi.org/10.1158/1055-9965.EPI-16-0695  
