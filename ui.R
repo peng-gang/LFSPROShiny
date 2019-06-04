@@ -20,8 +20,8 @@ shinyUI(
         
         p("The online tool requires two files as input: Family Data File and Cancer Data File.
   Please check the two links below to download the example files:"),
-        p(a("Family Data File", href="fam.data.csv", download="fam.data.csv")),
-        p(a("Cancer Data File", href="cancer.data.csv", download="cancer.data.csv")),
+        p(a("Family Data File", href="fam.data.csv", download="fam.data.csv"), br(),
+          a("Cancer Data File", href="cancer.data.csv", download="cancer.data.csv")),
         
         br(),
         p("After running the LFSPRO, there will be a figure and a table shown on the right. 
@@ -43,7 +43,6 @@ shinyUI(
                              "text/comma-separated-values,text/plain",
                              ".csv")),
         
-        tags$hr(),
         fluidRow(
           column(
             4, 
@@ -54,6 +53,7 @@ shinyUI(
           )
         ),
         
+        hr(),
         uiOutput("ui.cutoff")
       ),
       
