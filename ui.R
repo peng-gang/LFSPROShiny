@@ -43,6 +43,12 @@ shinyUI(
                              "text/comma-separated-values,text/plain",
                              ".csv")),
         
+        tags$div(
+          title = "ID of samples selected for calculation. Leave it blank to select all samples. For example: ID1,ID3,ID4",
+          textInput("txtSampleId", label = h5("Sample ID"), value = "")
+        ),
+        
+        
         fluidRow(
           column(
             4, 
