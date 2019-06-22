@@ -48,16 +48,7 @@ shinyUI(
           textInput("txtSampleId", label = h5("Sample ID"), value = "")
         ),
         
-        
-        fluidRow(
-          column(
-            4, 
-            uiOutput('ui.action')),
-          column(
-            4,
-            uiOutput('ui.action2')
-          )
-        ),
+        uiOutput('ui.action'),
         
         hr(),
         uiOutput("ui.cutoff")
