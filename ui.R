@@ -28,7 +28,7 @@ shinyUI(
   The figure shows the pedigree structure of the input family. 
   The family member with cancer is denoted by solid circle/sqare. 
   The table shows the results of LFRPRO, Classic and Chompret(2015) criteria.",
-          span("The cancer history will be shown by clicking the sample in the table.", style = "color:blue")),
+          span("The cancer history will be shown by clicking '+' in the table.", style = "color:blue")),
         
         br(),
         fileInput("file1", "Choose Family Data File",
