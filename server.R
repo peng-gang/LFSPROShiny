@@ -5,6 +5,8 @@ library(DT)
 library(data.table)
 library(shinyjs)
 library(shinyalert)
+library(reshape2)
+library(ggplot2)
 
 
 source("functions.R")
@@ -42,6 +44,7 @@ cutoff <- 0.2
 
 shinyServer(function(input, output) {
   LFSPRO.rlt <- NULL
+  myValue <- reactiveValues(idx.button = '')
   
   buttonInput <- function(FUN, len, id, ...) {
     inputs <- character(len)
@@ -122,12 +125,8 @@ shinyServer(function(input, output) {
         DT::datatable({
           isolate({
             fam.data <- famdata()
-            #print(famdata)
-            #fam.data <- LFSPRO::fam.data
             if (is.null(fam.data)) return(NULL)
             cancer.data <- cancerdata()
-            #print(cancer.data)
-            #cancer.data <- LFSPRO::cancer.data
             if (is.null(cancer.data)) return(NULL)
             
             fam.data$fam.id <- "fam"
@@ -265,8 +264,6 @@ shinyServer(function(input, output) {
   observeEvent(eventExpr = input$cutoff, handlerExpr = {
     cutoff <<- input$cutoff
 
-    print(input$cutoff)
-
     output$table <- DT::renderDataTable({
       if (is.null(input$action)) return(DT::datatable(NULL))
       if (input$action==0) return(DT::datatable(NULL))
@@ -346,15 +343,47 @@ shinyServer(function(input, output) {
   
   
   observeEvent(eventExpr = input$lastClick, handlerExpr = {
+    myValue$idx.button <<- as.numeric(strsplit(input$lastClick, "_")[[1]][2])
+    
     showModal(modalDialog(
-      title = "Risk",
-      plotOutput("hist")
+      title =  "Cancer Risk",
+      plotOutput("cancerrisk")
     ))
   })
   
-  output$hist <- renderPlot(
-    hist(rnorm(100))
-  )
+  output$cancerrisk <- renderPlot({
+    idx.button <- myValue$idx.button
+    dplot <- data.frame(
+      year = c(5, 10, 15),
+      breast = c(LFSPRO.rlt$breast.5[idx.button], LFSPRO.rlt$breast.10[idx.button], LFSPRO.rlt$breast.15[idx.button]),
+      sarcoma = c(LFSPRO.rlt$sarcoma.5[idx.button], LFSPRO.rlt$sarcoma.10[idx.button], LFSPRO.rlt$sarcoma.15[idx.button]),
+      other = c(LFSPRO.rlt$other.5[idx.button], LFSPRO.rlt$other.10[idx.button], LFSPRO.rlt$other.15[idx.button]),
+      second = c(LFSPRO.rlt$second.5[idx.button], LFSPRO.rlt$second.10[idx.button], LFSPRO.rlt$second.15[idx.button]),
+      stringsAsFactors = FALSE
+    )
+    idx.rm.col <- colSums(is.na(dplot))==0
+    dplot <- dplot[,idx.rm.col]
+    if(is.null(ncol(dplot))){
+      return(NULL)
+    }
+    
+    if(ncol(dplot)==1){
+      return(NULL)
+    }
+    
+    dplot.2 <- reshape2::melt(dplot, id.vars = "year", variable.name = "type", value.name = "risk")
+    
+    gp <- ggplot(dplot.2, aes(x=year, y = risk, fill = type)) + 
+      geom_bar(stat="identity", position=position_dodge(), width = 2) + 
+      theme_light() + 
+      labs(x="Year", y="Cancer Risk") + 
+      scale_x_continuous(breaks = c(5, 10, 15)) + 
+      theme(legend.title = element_blank(), legend.position = c(0.2, 0.8)) + 
+      theme(text = element_text(size=18))
+    
+    gp
+    
+  })
   
 })
 
