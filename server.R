@@ -7,7 +7,7 @@ library(shinyjs)
 library(shinyalert)
 library(reshape2)
 library(ggplot2)
-
+library(ggsci)
 
 source("functions.R")
 
@@ -133,8 +133,10 @@ shinyServer(function(input, output) {
             cancer.data$fam.id <- "fam"
             
             cid <- cid()
+            #print(cid)
             if(is.null(cid) || length(cid)==0){
               counselee.id <- data.frame(fam.id=fam.data$fam.id, id = fam.data$id)
+              #print(counselee.id)
             } else {
               idx.cid <- cid %in% fam.data$id
               if(sum(!idx.cid) > 0){
@@ -152,6 +154,10 @@ shinyServer(function(input, output) {
               }
               counselee.id <- data.frame(fam.id = "fam", id = cid)
             }
+            
+            ## patients are removed with age >= 80 or dead
+            id.rm <- fam.data$id[fam.data$age >= 80 | fam.data$vital == "D"]
+            counselee.id <- counselee.id[!(counselee.id$id %in% id.rm),]
             
             info <- NULL
             for(id in counselee.id$id){
@@ -193,6 +199,9 @@ shinyServer(function(input, output) {
               second.5 = LFSPRO.rlt$second.5,
               second.10 = LFSPRO.rlt$second.10,
               second.15 = LFSPRO.rlt$second.15,
+              #nc.5 = LFSPRO.rlt$nc.5,
+              #nc.10 = LFSPRO.rlt$nc.10,
+              #nc.15 = LFSPRO.rlt$nc.15,
               figure = buttonInput(
                 FUN = actionButton,
                 len = nrow(LFSPRO.rlt),
@@ -292,6 +301,9 @@ shinyServer(function(input, output) {
             second.5 = LFSPRO.rlt$second.5,
             second.10 = LFSPRO.rlt$second.10,
             second.15 = LFSPRO.rlt$second.15,
+            #nc.5 = LFSPRO.rlt$nc.5,
+            #nc.10 = LFSPRO.rlt$nc.10,
+            #nc.15 = LFSPRO.rlt$nc.15,
             figure = buttonInput(
               FUN = actionButton,
               len = nrow(LFSPRO.rlt),
@@ -347,18 +359,62 @@ shinyServer(function(input, output) {
     
     showModal(modalDialog(
       title =  "Cancer Risk",
-      plotOutput("cancerrisk")
+      plotOutput("cancerrisk"),
+      fluidRow(
+        column(
+          6,
+          verbatimTextOutput("sampleInfo")
+        ),
+        column(
+          6,
+          verbatimTextOutput("cancerInfo")
+        )
+      )
     ))
+  })
+  
+  output$sampleInfo <- renderText({
+    idx.button <- myValue$idx.button
+    id.sel <- LFSPRO.rlt$id[idx.button]
+    fam.data <- famdata()
+    idx.sel <- which(fam.data$id == id.sel)
+    rlt <- paste0(
+      "Sample id: ", id.sel,  "\n",
+      ifelse(
+        fam.data$vital[idx.sel] == "A",
+        paste0("Age: ", fam.data$age[idx.sel], "\n"),
+        paste0("Died at age of: ", fam.data$age[idx.sel], "\n")
+      ),
+      "Sex: ", ifelse(fam.data$gender[idx.sel] == 0, "Female", "Male"), "\n")
+    rlt
+  })
+  
+  output$cancerInfo <- renderText({
+    idx.button <- myValue$idx.button
+    id.sel <- LFSPRO.rlt$id[idx.button]
+    cancer.data <- cancerdata()
+    idx.sel <- which(cancer.data$id == id.sel)
+    rlt <- paste0("Sample id: ", id.sel, "\n")
+    if(length(idx.sel)==0){
+      rlt <- paste0(rlt, "No Cancer")
+    } else {
+      for(i in 1:length(idx.sel)){
+        rlt <- paste0(rlt, cancer.data$cancer.type[idx.sel[i]], "\t", cancer.data$diag.age[idx.sel[i]], "\n")
+      }
+    }
+    rlt
   })
   
   output$cancerrisk <- renderPlot({
     idx.button <- myValue$idx.button
     dplot <- data.frame(
       year = c(5, 10, 15),
-      breast = c(LFSPRO.rlt$breast.5[idx.button], LFSPRO.rlt$breast.10[idx.button], LFSPRO.rlt$breast.15[idx.button]),
-      sarcoma = c(LFSPRO.rlt$sarcoma.5[idx.button], LFSPRO.rlt$sarcoma.10[idx.button], LFSPRO.rlt$sarcoma.15[idx.button]),
-      other = c(LFSPRO.rlt$other.5[idx.button], LFSPRO.rlt$other.10[idx.button], LFSPRO.rlt$other.15[idx.button]),
-      second = c(LFSPRO.rlt$second.5[idx.button], LFSPRO.rlt$second.10[idx.button], LFSPRO.rlt$second.15[idx.button]),
+      Breast = c(LFSPRO.rlt$breast.5[idx.button], LFSPRO.rlt$breast.10[idx.button], LFSPRO.rlt$breast.15[idx.button]),
+      Sarcoma = c(LFSPRO.rlt$sarcoma.5[idx.button], LFSPRO.rlt$sarcoma.10[idx.button], LFSPRO.rlt$sarcoma.15[idx.button]),
+      Other = c(LFSPRO.rlt$other.5[idx.button], LFSPRO.rlt$other.10[idx.button], LFSPRO.rlt$other.15[idx.button]),
+      Second = c(LFSPRO.rlt$second.5[idx.button], LFSPRO.rlt$second.10[idx.button], LFSPRO.rlt$second.15[idx.button]),
+      NonCarrier = c(LFSPRO.rlt$nc.5[idx.button], LFSPRO.rlt$nc.10[idx.button], LFSPRO.rlt$nc.15[idx.button]),
+      
       stringsAsFactors = FALSE
     )
     idx.rm.col <- colSums(is.na(dplot))==0
@@ -378,7 +434,8 @@ shinyServer(function(input, output) {
       theme_light() + 
       labs(x="Year", y="Cancer Risk") + 
       scale_x_continuous(breaks = c(5, 10, 15)) + 
-      theme(legend.title = element_blank(), legend.position = c(0.2, 0.8)) + 
+      scale_fill_npg() + 
+      theme(legend.title = element_blank(), legend.position = "bottom") + 
       theme(text = element_text(size=18))
     
     gp
