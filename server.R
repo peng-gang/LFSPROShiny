@@ -30,7 +30,7 @@ sketch = htmltools::withTags(table(
       th(colspan = 3, "Breast Cancer"),
       th(colspan = 3, "Sarcoma"),
       th(colspan = 3, "Other Cancers"),
-      th(colspan = 3, "Secondary Cancer"),
+      th(colspan = 3, "Second Primary Cancer"),
       th(rowspan = 2, "Figure")
     ),
     tr(
@@ -105,16 +105,18 @@ shinyServer(function(input, output) {
           #cancer.data <- LFSPRO::cancer.data
           if (is.null(cancer.data)) return(NULL)
           
-          aff <- fam.data$id %in% cancer.data$id
+          aff <- data.frame(Cancer = fam.data$id %in% cancer.data$id,
+                            stringsAsFactors = FALSE)
           
           ped <- pedigree(id =  fam.data$id, 
                           dadid = fam.data$fid,
                           momid = fam.data$mid,
                           sex = ifelse(fam.data$gender==0, 2, 1),
                           famid = rep("fam", nrow(fam.data)),
-                          affected = aff)
-          plot(ped['fam'])
-          #pedigree.legend( ped, location="topright",radius=.2)
+                          status = ifelse(fam.data$vital == "A", 0, 1),
+                          affected = as.matrix(aff))
+          plot(ped['fam'], col = ifelse(fam.data$proband == "Y", "red", "black"))
+          pedigree.legend(ped['fam'], location="topright",radius=.15)
         })
       })
       
