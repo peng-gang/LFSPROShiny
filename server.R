@@ -115,8 +115,11 @@ shinyServer(function(input, output) {
                           famid = rep("fam", nrow(fam.data)),
                           status = ifelse(fam.data$vital == "A", 0, 1),
                           affected = as.matrix(aff))
-          plot(ped['fam'], col = ifelse(fam.data$proband == "Y", "red", "black"))
-          pedigree.legend(ped['fam'], location="topright",radius=.15)
+          pedSel <- ped["fam"]
+          id2 <- pedSel$id
+          id2[fam.data$proband == "Y"] <- paste(id2[fam.data$proband == "Y"], "Proband", sep = "\n")
+          plot(pedSel, col = ifelse(fam.data$proband == "Y", "red", "black"), id = id2)
+          pedigree.legend(pedSel, location="topleft",radius=.25, cex = 1.2)
         })
       })
       
@@ -165,13 +168,14 @@ shinyServer(function(input, output) {
             for(id in counselee.id$id){
               idx.sel <- which(cancer.data$id == id)
               if(length(idx.sel)){
-                info.tmp <- NULL
+                info.tmp <- ifelse(fam.data$gender[fam.data$id==id]==0, "Female;", "Male;")
                 for(i in idx.sel){
                   info.tmp <- paste0(info.tmp, cancer.data$cancer.type[i], " at age ", cancer.data$diag.age[i], "; ")
                 }
                 info <- c(info, info.tmp)
               } else {
-                info <- c(info, "No Cancer")
+                info.tmp <- ifelse(fam.data$gender[fam.data$id==id]==0, "Female;", "Male;")
+                info <- c(info, paste0(info.tmp, "No Cancer"))
               }
             }
             
@@ -430,9 +434,12 @@ shinyServer(function(input, output) {
     }
     
     dplot.2 <- reshape2::melt(dplot, id.vars = "year", variable.name = "type", value.name = "risk")
+    dplot.2$risk2 <- format(round(dplot.2$risk, 3), nsmall = 3)
     
     gp <- ggplot(dplot.2, aes(x=year, y = risk, fill = type)) + 
       geom_bar(stat="identity", position=position_dodge(), width = 2) + 
+      geom_text(aes(label=risk2), vjust=-0.2, color="black",
+                position = position_dodge(2), size=3.5)+
       theme_light() + 
       labs(x="Year", y="Cancer Risk") + 
       scale_x_continuous(breaks = c(5, 10, 15)) + 
