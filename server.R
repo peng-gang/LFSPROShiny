@@ -99,14 +99,22 @@ shinyServer(function(input, output) {
         if (input$action==0) return()
         isolate({
           fam.data <- famdata()
+          idx <- which(fam.data$proband == "Y")
+          fam.data <- rbind(fam.data[-idx,], fam.data[idx,])
+          
           #fam.data <- LFSPRO::fam.data
           if (is.null(fam.data)) return(NULL)
           cancer.data <- cancerdata()
           #cancer.data <- LFSPRO::cancer.data
           if (is.null(cancer.data)) return(NULL)
           
-          aff <- data.frame(Cancer = fam.data$id %in% cancer.data$id,
-                            stringsAsFactors = FALSE)
+          #tmp <- table(cancer.data$id)
+          #t1 <- names(tmp)[tmp==1]
+          #t2 <- names(tmp)[tmp>1]
+          #aff <- data.frame(C1 = fam.data$id %in% t1,
+          #                  CM = fam.data$id %in% t2,
+          #                  stringsAsFactors = FALSE)
+          aff <- data.frame(Affected = fam.data$id %in% cancer.data$id)
           
           ped <- pedigree(id =  fam.data$id, 
                           dadid = fam.data$fid,
@@ -118,8 +126,22 @@ shinyServer(function(input, output) {
           pedSel <- ped["fam"]
           id2 <- pedSel$id
           id2[fam.data$proband == "Y"] <- paste(id2[fam.data$proband == "Y"], "Proband", sep = "\n")
-          plot(pedSel, col = ifelse(fam.data$proband == "Y", "red", "black"), id = id2)
-          pedigree.legend(pedSel, location="topleft",radius=.25, cex = 1.2)
+          #colP <- ifelse(fam.data$proband == "Y", 1, 0)
+          legendPlot(pedSel,
+                     #affected.label = c("One Primary", "Multi Primary"),
+                     affected.label = c("Affected"),
+                     col = ifelse(fam.data$proband == "Y", "red", "black"),
+                     col.label = c("Unaffected", "Proband"), 
+                     id = id2)
+          # legendPlot(pedSel, col = ifelse(fam.data$proband == "Y", "red", "black"), 
+          #            col.label = c("Proband", "Other"), 
+          #            affected.label = c("Affected"),
+          #            id = id2)
+          # plot(pedSel, col = ifelse(fam.data$proband == "Y", "red", "black"), id = id2)
+          # pedigree.legend(pedSel, 
+          #                 col = ifelse(fam.data$proband == "Y", "red", "black"), 
+          #                 col.label = c("Proband", "Other"),
+          #                 location="topleft",radius=.25, cex = 1.1)
         })
       })
       
