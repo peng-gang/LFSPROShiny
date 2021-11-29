@@ -59,10 +59,10 @@ shinyServer(function(input, output) {
     if (is.null(infile)){
       return(NULL)      
     }
-    read.csv(infile$datapath,
-             header = TRUE,
-             sep = ",",
-             stringsAsFactors = FALSE)
+    fam.data.process(read.csv(infile$datapath,
+                              header = TRUE,
+                              sep = ",",
+                              stringsAsFactors = FALSE))
   })
   
   cancerdata <- reactive({
@@ -70,10 +70,10 @@ shinyServer(function(input, output) {
     if (is.null(infile)){
       return(NULL)      
     }
-    read.csv(infile$datapath,
-             header = TRUE,
-             sep = ",",
-             stringsAsFactors = FALSE)
+    cancer.data.process(read.csv(infile$datapath,
+                                 header = TRUE,
+                                 sep = ",",
+                                 stringsAsFactors = FALSE))
   })
   
   cid <- reactive({
@@ -161,8 +161,8 @@ shinyServer(function(input, output) {
             
             cid <- cid()
             #print(cid)
-            if(is.null(cid) || length(cid)==0){
-              counselee.id <- data.frame(fam.id=fam.data$fam.id, id = fam.data$id)
+            if(is.null(cid) || length(cid) == 0){
+              counselee.id <- data.frame(fam.id = fam.data$fam.id, id = fam.data$id)
               #print(counselee.id)
             } else {
               idx.cid <- cid %in% fam.data$id
@@ -190,13 +190,15 @@ shinyServer(function(input, output) {
             for(id in counselee.id$id){
               idx.sel <- which(cancer.data$id == id)
               if(length(idx.sel)){
-                info.tmp <- ifelse(fam.data$gender[fam.data$id==id]==0, "Female;", "Male;")
+                info.tmp <- paste0(fam.data$age[fam.data$id==id], " years old ")
+                info.tmp <- paste0(info.tmp, ifelse(fam.data$gender[fam.data$id==id]==0, "female; ", "male; "))
                 for(i in idx.sel){
                   info.tmp <- paste0(info.tmp, cancer.data$cancer.type[i], " at age ", cancer.data$diag.age[i], "; ")
                 }
                 info <- c(info, info.tmp)
               } else {
-                info.tmp <- ifelse(fam.data$gender[fam.data$id==id]==0, "Female;", "Male;")
+                info.tmp <- paste0(fam.data$age[fam.data$id==id], " years old ")
+                info.tmp <- paste0(info.tmp, ifelse(fam.data$gender[fam.data$id==id]==0, "female; ", "male; "))
                 info <- c(info, paste0(info.tmp, "No Cancer"))
               }
             }
@@ -381,7 +383,6 @@ shinyServer(function(input, output) {
     })
   })
   
-  
   observeEvent(eventExpr = input$lastClick, handlerExpr = {
     myValue$idx.button <<- as.numeric(strsplit(input$lastClick, "_")[[1]][2])
     
@@ -435,39 +436,78 @@ shinyServer(function(input, output) {
   
   output$cancerrisk <- renderPlot({
     idx.button <- myValue$idx.button
+    
     dplot <- data.frame(
       year = c(5, 10, 15),
+      
       Breast = c(LFSPRO.rlt$breast.5[idx.button], LFSPRO.rlt$breast.10[idx.button], LFSPRO.rlt$breast.15[idx.button]),
       Sarcoma = c(LFSPRO.rlt$sarcoma.5[idx.button], LFSPRO.rlt$sarcoma.10[idx.button], LFSPRO.rlt$sarcoma.15[idx.button]),
       Other = c(LFSPRO.rlt$other.5[idx.button], LFSPRO.rlt$other.10[idx.button], LFSPRO.rlt$other.15[idx.button]),
       Second = c(LFSPRO.rlt$second.5[idx.button], LFSPRO.rlt$second.10[idx.button], LFSPRO.rlt$second.15[idx.button]),
-      NonCarrier = c(LFSPRO.rlt$nc.5[idx.button], LFSPRO.rlt$nc.10[idx.button], LFSPRO.rlt$nc.15[idx.button]),
       
       stringsAsFactors = FALSE
     )
-    idx.rm.col <- colSums(is.na(dplot))==0
+    idx.rm.col <- colSums(is.na(dplot)) == 0
     dplot <- dplot[,idx.rm.col]
     if(is.null(ncol(dplot))){
       return(NULL)
     }
     
-    if(ncol(dplot)==1){
+    dplot.pop <- data.frame(
+      year = c(5, 10, 15),
+      
+      Pop.Breast = c(LFSPRO.rlt$pop.breast.5[idx.button], LFSPRO.rlt$pop.breast.10[idx.button], 
+                     LFSPRO.rlt$pop.breast.15[idx.button]),
+      Pop.Sarcoma = c(LFSPRO.rlt$pop.sarcoma.5[idx.button], LFSPRO.rlt$pop.sarcoma.10[idx.button], 
+                      LFSPRO.rlt$pop.sarcoma.15[idx.button]),
+      Pop.Other = c(LFSPRO.rlt$pop.other.5[idx.button], LFSPRO.rlt$pop.other.10[idx.button], 
+                    LFSPRO.rlt$pop.other.15[idx.button]),
+      Pop.Second = c(LFSPRO.rlt$pop.second.5[idx.button], LFSPRO.rlt$pop.second.10[idx.button], 
+                     LFSPRO.rlt$pop.second.15[idx.button]),
+      
+      stringsAsFactors = FALSE
+    )
+    
+    idx.rm.col <- colSums(is.na(dplot.pop)) == 0
+    dplot.pop <- dplot.pop[,idx.rm.col]
+    if(is.null(ncol(dplot.pop))){
       return(NULL)
     }
     
     dplot.2 <- reshape2::melt(dplot, id.vars = "year", variable.name = "type", value.name = "risk")
-    dplot.2$risk2 <- format(round(dplot.2$risk, 3), nsmall = 3)
+    dplot.2$risk_per <- 100 * dplot.2$risk
+    dplot.2$risk_per2 <- round(dplot.2$risk_per, 3)
+    dplot.2$year <- factor(dplot.2$year)
+    levels(dplot.2$year) <- c("5yr", "10yr", "15yr")
+    dplot.2$pop <- factor(0)
     
-    gp <- ggplot(dplot.2, aes(x=year, y = risk, fill = type)) + 
-      geom_bar(stat="identity", position=position_dodge(), width = 2) + 
-      geom_text(aes(label=risk2), vjust=-0.2, color="black",
-                position = position_dodge(2), size=3.5)+
+    dplot.pop.2 <- reshape2::melt(dplot.pop, id.vars = "year", variable.name = "type", value.name = "risk")
+    dplot.pop.2$risk_per <- 100 * dplot.pop.2$risk
+    dplot.pop.2$year <- factor(dplot.pop.2$year)
+    levels(dplot.pop.2$year) <- c("5yr", "10yr", "15yr")
+    levels(dplot.pop.2$type) <- levels(dplot.2$type)
+    dplot.pop.2$pop <- factor(1)
+    
+    colors <- c("royalblue4", "firebrick1") 
+    labels <- c("Personalized cancer risk", "Population cancer risk")
+    
+    gp <- ggplot() +
+      geom_col(data = dplot.2, aes(x = year, y = risk_per, fill = pop), 
+               alpha = 0.7, width = 0.6, position = position_dodge(0.7)) +
+      geom_col(data = dplot.pop.2, aes(x = year, y = risk_per, fill = pop), 
+               width = 0.4, position = position_dodge(0.7)) +
+      geom_text(data = dplot.2, vjust = -0.25, 
+                aes(x = year, y = risk_per, label = ifelse(risk_per2 == 0, 'NA', risk_per2))) +
+      facet_wrap(~ type, strip.position = "bottom") +
       theme_light() + 
-      labs(x="Year", y="Cancer Risk") + 
-      scale_x_continuous(breaks = c(5, 10, 15)) + 
-      scale_fill_npg() + 
+      scale_fill_manual(values = colors, labels = labels) +
+      labs(x = NULL, y = "Probability (%)") + 
       theme(legend.title = element_blank(), legend.position = "bottom") + 
-      theme(text = element_text(size=18))
+      theme(text = element_text(size = 12), 
+            panel.spacing = unit(0, "lines"), 
+            strip.background = element_blank(),
+            strip.text = element_text(color = "black"),
+            strip.placement = "outside")
     
     gp
     
