@@ -64,23 +64,24 @@ runLFSPRO <- function(fam.data, cancer.data, counselee.id){
 
 fam.data.process <- function(fam.data) {
   pedigree.notes.1 <- fam.data[, "PedigreeNotes1"]
-  n.1 <- length(pedigree.notes.1)
+  n.1 <- sum(!is.na(pedigree.notes.1))
   
-  age.extra.1 <- rep(NA, n.1)
-  
-  for (i in 1:n.1) {
-    note <- pedigree.notes.1[i]
-    if (note != "") {
-      age <- as.numeric(unlist(regmatches(note, gregexpr("[[:digit:]]+", note))))
-      if (length(age) > 0) {
-        age <- age[(age <= 100) & (age >= 1)]
-        age <- mean(age)
-        month.1 <- unlist(regmatches(note, gregexpr(" m ", note)))
-        month.2 <- unlist(regmatches(note, gregexpr("month|months", note)))
-        if (length(c(month.1, month.2)) > 0) {
-          age <- ceiling(age / 12)
+  if (n.1 > 0) {
+    age.extra.1 <- rep(NA, n.1)
+    for (i in 1:n.1) {
+      note <- pedigree.notes.1[i]
+      if (note != "") {
+        age <- as.numeric(unlist(regmatches(note, gregexpr("[[:digit:]]+", note))))
+        if (length(age) > 0) {
+          age <- age[(age <= 100) & (age >= 1)]
+          age <- mean(age)
+          month.1 <- unlist(regmatches(note, gregexpr(" m ", note)))
+          month.2 <- unlist(regmatches(note, gregexpr("month|months", note)))
+          if (length(c(month.1, month.2)) > 0) {
+            age <- ceiling(age / 12)
+          }
+          age.extra.1[i] <- age
         }
-        age.extra.1[i] <- age
       }
     }
   }
@@ -88,23 +89,24 @@ fam.data.process <- function(fam.data) {
   #######################
   
   pedigree.notes.2 <- fam.data[, "PedigreeNotes2"]
-  n.2 <- length(pedigree.notes.2)
+  n.2 <- sum(!is.na(pedigree.notes.2))
   
-  age.extra.2 <- rep(NA, n.2)
-  
-  for (i in 1:n.2) {
-    note <- pedigree.notes.2[i]
-    if (note != "") {
-      age <- as.numeric(unlist(regmatches(note, gregexpr("[[:digit:]]+", note))))
-      if (length(age) > 0) {
-        age <- age[(age <= 100) & (age >= 1)]
-        age <- mean(age)
-        month.1 <- unlist(regmatches(note, gregexpr(" m ", note)))
-        month.2 <- unlist(regmatches(note, gregexpr("month|months", note)))
-        if (length(c(month.1, month.2)) > 0) {
-          age <- ceiling(age / 12)
+  if (n.2 > 0) {
+    age.extra.2 <- rep(NA, n.2)
+    for (i in 1:n.2) {
+      note <- pedigree.notes.2[i]
+      if (note != "") {
+        age <- as.numeric(unlist(regmatches(note, gregexpr("[[:digit:]]+", note))))
+        if (length(age) > 0) {
+          age <- age[(age <= 100) & (age >= 1)]
+          age <- mean(age)
+          month.1 <- unlist(regmatches(note, gregexpr(" m ", note)))
+          month.2 <- unlist(regmatches(note, gregexpr("month|months", note)))
+          if (length(c(month.1, month.2)) > 0) {
+            age <- ceiling(age / 12)
+          }
+          age.extra.2[i] <- age
         }
-        age.extra.2[i] <- age
       }
     }
   }
@@ -112,36 +114,46 @@ fam.data.process <- function(fam.data) {
   #######################
   
   pedigree.notes.3 <- fam.data[, "PedigreeNotes3"]
-  n.3 <- length(pedigree.notes.3)
+  n.3 <- sum(!is.na(pedigree.notes.3))
   
-  age.extra.3 <- rep(NA, n.3)
-  
-  for (i in 1:n.3) {
-    note <- pedigree.notes.3[i]
-    if (note != "") {
-      age <- as.numeric(unlist(regmatches(note, gregexpr("[[:digit:]]+", note))))
-      if (length(age) > 0) {
-        age <- age[(age <= 100) & (age >= 1)]
-        age <- mean(age)
-        month.1 <- unlist(regmatches(note, gregexpr(" m ", note)))
-        month.2 <- unlist(regmatches(note, gregexpr("month|months", note)))
-        if (length(c(month.1, month.2)) > 0) {
-          age <- ceiling(age / 12)
+  if (n.3 > 0) {
+    age.extra.3 <- rep(NA, n.3)
+    for (i in 1:n.3) {
+      note <- pedigree.notes.3[i]
+      if (note != "") {
+        age <- as.numeric(unlist(regmatches(note, gregexpr("[[:digit:]]+", note))))
+        if (length(age) > 0) {
+          age <- age[(age <= 100) & (age >= 1)]
+          age <- mean(age)
+          month.1 <- unlist(regmatches(note, gregexpr(" m ", note)))
+          month.2 <- unlist(regmatches(note, gregexpr("month|months", note)))
+          if (length(c(month.1, month.2)) > 0) {
+            age <- ceiling(age / 12)
+          }
+          age.extra.3[i] <- age
         }
-        age.extra.3[i] <- age
       }
     }
   }
   
   #######################
   
-  age.extra <- age.extra.1
+  age.extra <- rep(NA, nrow(fam.data))
   
-  idx.temp <- (is.na(age.extra) & !is.na(age.extra.2))
-  age.extra[idx.temp] <- age.extra.2[idx.temp]
+  if (n.1 > 0) {
+    idx.temp <- (is.na(age.extra) & !is.na(age.extra.1))
+    age.extra[idx.temp] <- age.extra.1[idx.temp]
+  }
   
-  idx.temp <- (is.na(age.extra) & !is.na(age.extra.3))
-  age.extra[idx.temp] <- age.extra.3[idx.temp]
+  if (n.2 > 0) {
+    idx.temp <- (is.na(age.extra) & !is.na(age.extra.2))
+    age.extra[idx.temp] <- age.extra.2[idx.temp]
+  }
+  
+  if (n.3 > 0) {
+    idx.temp <- (is.na(age.extra) & !is.na(age.extra.3))
+    age.extra[idx.temp] <- age.extra.3[idx.temp]
+  }
   
   #######################
   
@@ -157,8 +169,17 @@ fam.data.process <- function(fam.data) {
   return(fam.data)
 }
 
-cancer.data.process <- function(cancer.data) {
+cancer.data.process <- function(fam.data, cancer.data) {
+  for (i in 1:nrow(cancer.data)) {
+    if (is.na(cancer.data[i, "diag.age"])) {
+      id <- cancer.data[i, "id"]
+      idx <- which(fam.data[, "id"] == id)
+      age <- fam.data[idx, "age"]
+      cancer.data[i, "diag.age"] <- age
+    }
+  }
   cancer.data[cancer.data[, "diag.age"] == 0, "diag.age"] <- 1
+  
   return(cancer.data)
 }
 

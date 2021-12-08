@@ -70,10 +70,10 @@ shinyServer(function(input, output) {
     if (is.null(infile)){
       return(NULL)      
     }
-    cancer.data.process(read.csv(infile$datapath,
-                                 header = TRUE,
-                                 sep = ",",
-                                 stringsAsFactors = FALSE))
+    cancer.data.process(famdata(), read.csv(infile$datapath,
+                                            header = TRUE,
+                                            sep = ",",
+                                            stringsAsFactors = FALSE))
   })
   
   cid <- reactive({
@@ -154,6 +154,7 @@ shinyServer(function(input, output) {
             fam.data <- famdata()
             if (is.null(fam.data)) return(NULL)
             cancer.data <- cancerdata()
+            print(cancer.data)
             if (is.null(cancer.data)) return(NULL)
             
             fam.data$fam.id <- "fam"
@@ -239,7 +240,7 @@ shinyServer(function(input, output) {
                 label = "Risk Trend",
                 onclick = 'Shiny.onInputChange(\"lastClick\",  this.id)'
               )
-              )
+            )
             
             rlt <- cbind('Details' = '&oplus;', rlt)
             rlt
@@ -252,7 +253,7 @@ shinyServer(function(input, output) {
           )
         ),
         callback = JS(
-        "
+          "
         table.column(1).nodes().to$().css({cursor: 'pointer'});
         
         var format = function(d) {
@@ -285,7 +286,7 @@ shinyServer(function(input, output) {
   output$ui.cutoff <- renderUI({
     if (is.null(input$action) ) return()
     if (input$action==0) return()
-
+    
     sliderInput("cutoff", "Cutoff for probability",
                 min=0, max=1, value = 0.2, step = 0.05)
   })
@@ -302,7 +303,7 @@ shinyServer(function(input, output) {
   
   observeEvent(eventExpr = input$cutoff, handlerExpr = {
     cutoff <<- input$cutoff
-
+    
     output$table <- DT::renderDataTable({
       if (is.null(input$action)) return(DT::datatable(NULL))
       if (input$action==0) return(DT::datatable(NULL))
