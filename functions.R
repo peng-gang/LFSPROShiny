@@ -62,6 +62,67 @@ runLFSPRO <- function(fam.data, cancer.data, counselee.id){
   rlt
 }
 
+dummy.create <- function(fam.data) {
+  fam <- fam.data
+  
+  id <- fam$id 
+  fid <- fam$fid
+  fid[fid == 0] <- NA
+  mid <- fam$mid
+  mid[mid == 0] <- NA
+  gender <- fam$gender
+  age <- fam$age
+  vital <- fam$vital
+  proband <- fam$proband
+  dummy <- rep(0, length(id))
+  
+  dad.id.not.found <- fid[!(fid %in% id) & !is.na(fid)]
+  n <- length(dad.id.not.found)
+  id <- c(id, dad.id.not.found)
+  fid <- c(fid, rep(NA, n))
+  mid <- c(mid, rep(NA, n))
+  gender <- c(gender, rep(1, n))
+  age <- c(age, rep(1, n))
+  vital <- c(vital, rep('A', n))
+  proband <- c(proband, rep('N', n))
+  dummy <- c(dummy, rep(1, n))
+  
+  mum.id.not.found <- mid[!(mid %in% id) & !is.na(mid)]
+  n <- length(mum.id.not.found)
+  id <- c(id, mum.id.not.found)
+  fid <- c(fid, rep(NA, n))
+  mid <- c(mid, rep(NA, n))
+  gender <- c(gender, rep(0, n))
+  age <- c(age, rep(1, n))
+  vital <- c(vital, rep('A', n))
+  proband <- c(proband, rep('N', n))
+  dummy <- c(dummy, rep(1, n))
+  
+  for (j in 1:length(id)) {
+    add <- FALSE
+    if (is.na(fid[j]) & !is.na(mid[j])) {
+      fid[j] <- max(id) + 1
+      gender <- c(gender, 1)
+      add <- TRUE
+    } else if (!is.na(fid[j]) & is.na(mid[j])) {
+      mid[j] <- max(id) + 1
+      gender <- c(gender, 0)
+      add <- TRUE
+    }
+    if (add == TRUE) {
+      id <- c(id, max(id) + 1)
+      fid <- c(fid, NA)
+      mid <- c(mid, NA)
+      age <- c(age, 1)
+      vital <- c(vital, 'A')
+      proband <- c(proband, 'N')
+      dummy <- c(dummy, 1)
+    }
+  }
+  fam <- data.frame(id, fid, mid, gender, age, vital, proband, dummy)
+  return(fam)
+}
+
 fam.data.process <- function(fam.data) {
   pedigree.notes.1 <- fam.data[, "PedigreeNotes1"]
   n.1 <- sum(!is.na(pedigree.notes.1))

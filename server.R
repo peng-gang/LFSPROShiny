@@ -59,10 +59,10 @@ shinyServer(function(input, output) {
     if (is.null(infile)){
       return(NULL)      
     }
-    fam.data.process(read.csv(infile$datapath,
-                              header = TRUE,
-                              sep = ",",
-                              stringsAsFactors = FALSE))
+    dummy.create(fam.data.process(read.csv(infile$datapath,
+                                           header = TRUE,
+                                           sep = ",",
+                                           stringsAsFactors = FALSE)))
   })
   
   cancerdata <- reactive({
@@ -101,19 +101,10 @@ shinyServer(function(input, output) {
           fam.data <- famdata()
           idx <- which(fam.data$proband == "Y")
           fam.data <- rbind(fam.data[-idx,], fam.data[idx,])
-          
-          #fam.data <- LFSPRO::fam.data
           if (is.null(fam.data)) return(NULL)
           cancer.data <- cancerdata()
-          #cancer.data <- LFSPRO::cancer.data
           if (is.null(cancer.data)) return(NULL)
           
-          #tmp <- table(cancer.data$id)
-          #t1 <- names(tmp)[tmp==1]
-          #t2 <- names(tmp)[tmp>1]
-          #aff <- data.frame(C1 = fam.data$id %in% t1,
-          #                  CM = fam.data$id %in% t2,
-          #                  stringsAsFactors = FALSE)
           aff <- data.frame(Affected = fam.data$id %in% cancer.data$id)
           
           ped <- pedigree(id =  fam.data$id, 
@@ -126,22 +117,11 @@ shinyServer(function(input, output) {
           pedSel <- ped["fam"]
           id2 <- pedSel$id
           id2[fam.data$proband == "Y"] <- paste(id2[fam.data$proband == "Y"], "Proband", sep = "\n")
-          #colP <- ifelse(fam.data$proband == "Y", 1, 0)
           legendPlot(pedSel,
-                     #affected.label = c("One Primary", "Multi Primary"),
                      affected.label = c("Affected"),
-                     col = ifelse(fam.data$proband == "Y", "red", "black"),
-                     col.label = c("Unaffected", "Proband"), 
+                     col = ifelse(fam.data$dummy == 0, ifelse(fam.data$proband == "Y", "red", "black"), "blue"),
+                     col.label = c("Unaffected", "Dummy", "Proband"), 
                      id = id2)
-          # legendPlot(pedSel, col = ifelse(fam.data$proband == "Y", "red", "black"), 
-          #            col.label = c("Proband", "Other"), 
-          #            affected.label = c("Affected"),
-          #            id = id2)
-          # plot(pedSel, col = ifelse(fam.data$proband == "Y", "red", "black"), id = id2)
-          # pedigree.legend(pedSel, 
-          #                 col = ifelse(fam.data$proband == "Y", "red", "black"), 
-          #                 col.label = c("Proband", "Other"),
-          #                 location="topleft",radius=.25, cex = 1.1)
         })
       })
       
@@ -154,17 +134,15 @@ shinyServer(function(input, output) {
             fam.data <- famdata()
             if (is.null(fam.data)) return(NULL)
             cancer.data <- cancerdata()
-            print(cancer.data)
             if (is.null(cancer.data)) return(NULL)
             
             fam.data$fam.id <- "fam"
             cancer.data$fam.id <- "fam"
             
             cid <- cid()
-            #print(cid)
+
             if(is.null(cid) || length(cid) == 0){
               counselee.id <- data.frame(fam.id = fam.data$fam.id, id = fam.data$id)
-              #print(counselee.id)
             } else {
               idx.cid <- cid %in% fam.data$id
               if(sum(!idx.cid) > 0){
@@ -188,18 +166,23 @@ shinyServer(function(input, output) {
             counselee.id <- counselee.id[!(counselee.id$id %in% id.rm),]
             
             info <- NULL
-            for(id in counselee.id$id){
-              idx.sel <- which(cancer.data$id == id)
-              if(length(idx.sel)){
-                info.tmp <- paste0(fam.data$age[fam.data$id==id], " years old ")
-                info.tmp <- paste0(info.tmp, ifelse(fam.data$gender[fam.data$id==id]==0, "female; ", "male; "))
-                for(i in idx.sel){
-                  info.tmp <- paste0(info.tmp, cancer.data$cancer.type[i], " at age ", cancer.data$diag.age[i], "; ")
+            for(i in 1:length(counselee.id$id)){
+              id <- counselee.id$id[i]
+              idx.can <- which(cancer.data$id == id)
+              idx.fam <- which(fam.data$id == id)
+              if (fam.data$dummy[idx.fam] == 0) {
+                info.tmp <- ""
+              } else {
+                info.tmp <- "DUMMY; "
+              }
+              info.tmp <- paste0(info.tmp, fam.data$age[idx.fam], " years old ")
+              info.tmp <- paste0(info.tmp, ifelse(fam.data$gender[idx.fam]==0, "female; ", "male; "))
+              if(length(idx.can)){
+                for(j in idx.can){
+                  info.tmp <- paste0(info.tmp, cancer.data$cancer.type[j], " at age ", cancer.data$diag.age[j], "; ")
                 }
                 info <- c(info, info.tmp)
               } else {
-                info.tmp <- paste0(fam.data$age[fam.data$id==id], " years old ")
-                info.tmp <- paste0(info.tmp, ifelse(fam.data$gender[fam.data$id==id]==0, "female; ", "male; "))
                 info <- c(info, paste0(info.tmp, "No Cancer"))
               }
             }
@@ -230,9 +213,6 @@ shinyServer(function(input, output) {
               second.5 = LFSPRO.rlt$second.5,
               second.10 = LFSPRO.rlt$second.10,
               second.15 = LFSPRO.rlt$second.15,
-              #nc.5 = LFSPRO.rlt$nc.5,
-              #nc.10 = LFSPRO.rlt$nc.10,
-              #nc.15 = LFSPRO.rlt$nc.15,
               figure = buttonInput(
                 FUN = actionButton,
                 len = nrow(LFSPRO.rlt),
@@ -332,9 +312,6 @@ shinyServer(function(input, output) {
             second.5 = LFSPRO.rlt$second.5,
             second.10 = LFSPRO.rlt$second.10,
             second.15 = LFSPRO.rlt$second.15,
-            #nc.5 = LFSPRO.rlt$nc.5,
-            #nc.10 = LFSPRO.rlt$nc.10,
-            #nc.15 = LFSPRO.rlt$nc.15,
             figure = buttonInput(
               FUN = actionButton,
               len = nrow(LFSPRO.rlt),
