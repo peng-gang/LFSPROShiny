@@ -1,6 +1,5 @@
 library(shiny)
 library(kinship2)
-library(LFSPRO)
 library(DT)
 library(data.table)
 library(shinyjs)
@@ -10,6 +9,14 @@ library(ggplot2)
 library(ggsci)
 
 source("functions.R")
+sourceDir <- function(path, trace = TRUE, ...) {
+  for (nm in list.files(path, pattern = "[.][RrSsQq]$")) {
+    if(trace) cat(nm,":")
+    source(file.path(path, nm), ...)
+    if(trace) cat("\n")
+  }
+}
+sourceDir("R")
 
 #Style
 sketch = htmltools::withTags(table(
@@ -59,10 +66,7 @@ shinyServer(function(input, output) {
     if (is.null(infile)){
       return(NULL)      
     }
-    dummy.create(fam.data.process(read.csv(infile$datapath,
-                                           header = TRUE,
-                                           sep = ",",
-                                           stringsAsFactors = FALSE)))
+    read.csv(infile$datapath, header = TRUE, sep = ",", stringsAsFactors = FALSE)
   })
   
   cancerdata <- reactive({
@@ -70,10 +74,7 @@ shinyServer(function(input, output) {
     if (is.null(infile)){
       return(NULL)      
     }
-    cancer.data.process(famdata(), read.csv(infile$datapath,
-                                            header = TRUE,
-                                            sep = ",",
-                                            stringsAsFactors = FALSE))
+    read.csv(infile$datapath, header = TRUE, sep = ",", stringsAsFactors = FALSE)
   })
   
   cid <- reactive({
@@ -104,6 +105,8 @@ shinyServer(function(input, output) {
           if (is.null(fam.data)) return(NULL)
           cancer.data <- cancerdata()
           if (is.null(cancer.data)) return(NULL)
+          fam.data <- dummy.create(fam.data.process(fam.data, cancer.data))
+          cancer.data <- cancer.data.process(fam.data, cancer.data)
           
           aff <- data.frame(Affected = fam.data$id %in% cancer.data$id)
           
@@ -135,6 +138,8 @@ shinyServer(function(input, output) {
             if (is.null(fam.data)) return(NULL)
             cancer.data <- cancerdata()
             if (is.null(cancer.data)) return(NULL)
+            fam.data <- dummy.create(fam.data.process(fam.data, cancer.data))
+            cancer.data <- cancer.data.process(fam.data, cancer.data)
             
             fam.data$fam.id <- "fam"
             cancer.data$fam.id <- "fam"

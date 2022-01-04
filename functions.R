@@ -123,7 +123,7 @@ dummy.create <- function(fam.data) {
   return(fam)
 }
 
-fam.data.process <- function(fam.data) {
+fam.data.process <- function(fam.data, cancer.data) {
   pedigree.notes.1 <- fam.data[, "PedigreeNotes1"]
   n.1 <- sum(!is.na(pedigree.notes.1))
   
@@ -224,6 +224,22 @@ fam.data.process <- function(fam.data) {
   fam.data[fam.data[, "age"] == 0, "age"] <- 1
   
   fam.data <- subset(fam.data, select = -c(PedigreeNotes1, PedigreeNotes2, PedigreeNotes3))
+  
+  #######################
+  
+  id.list <- fam.data[, "id"]
+  
+  for (i in 1:length(id.list)) {
+    id <- id.list[i]
+    age <- fam.data[i, "age"]
+    age.diag <- cancer.data[cancer.data$id == id, "diag.age"]
+    age.diag.last <- ifelse(length(age.diag) == 0, 0, max(age.diag))
+    if (!is.na(age.diag.last)) {
+      if (age.diag.last > age) {
+        fam.data[i, "age"] <- age.diag.last
+      }
+    }
+  }
   
   #######################
   
